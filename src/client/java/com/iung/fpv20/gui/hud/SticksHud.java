@@ -3,10 +3,13 @@ package com.iung.fpv20.gui.hud;
 import com.iung.fpv20.Fpv20Client;
 import com.iung.fpv20.flying.GlobalFlying;
 import com.iung.fpv20.input.Controller;
+import com.iung.fpv20.replay.FpvReplayManager;
 import com.iung.fpv20.utils.Utils;
 import net.fabricmc.fabric.api.client.rendering.v1.HudRenderCallback;
+import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.render.RenderTickCounter;
+import net.minecraft.text.Text;
 
 import java.util.Objects;
 
@@ -37,6 +40,17 @@ public class SticksHud implements HudRenderCallback {
     public void onHudRender(DrawContext drawContext, RenderTickCounter tickCounter) {
         if (!Fpv20Client.config.show_osd()) {
             return;
+        }
+
+        if (FpvReplayManager.isReplaying()) {
+            long tMs = FpvReplayManager.getReplayTimeMillis();
+            long totalSeconds = tMs / 1000;
+            long minutes = totalSeconds / 60;
+            long seconds = totalSeconds % 60;
+            long millis = tMs % 1000;
+            String timecode = String.format("%02d:%02d.%03d", minutes, seconds, millis);
+            drawContext.drawText(MinecraftClient.getInstance().textRenderer,
+                    Text.literal("REPLAY " + timecode), 6, 6, WHITE, true);
         }
 
         if (!GlobalFlying.getFlying()) {

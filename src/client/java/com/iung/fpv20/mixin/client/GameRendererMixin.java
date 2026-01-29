@@ -4,6 +4,7 @@ import com.iung.fpv20.Fpv20;
 import com.iung.fpv20.Fpv20Client;
 import com.iung.fpv20.flying.GlobalFlying;
 import com.iung.fpv20.input.Controller;
+import com.iung.fpv20.replay.FpvReplayManager;
 import com.iung.fpv20.utils.FastMath;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.render.Camera;
@@ -61,6 +62,7 @@ public class GameRendererMixin {
 //        }
 
         long time_start = System.nanoTime();
+        float tickDelta = tickCounter.getTickProgress(false);
 
 
         MinecraftClient client = MinecraftClient.getInstance();
@@ -83,7 +85,10 @@ public class GameRendererMixin {
             controller.poll();
         }
         if (client != null) {
-            GlobalFlying.G.handle_flying_rotate(client, dt);
+            FpvReplayManager.onRenderFrame(client, camera);
+            if (!FpvReplayManager.isReplaying()) {
+                GlobalFlying.G.handle_flying_rotate(client, dt, tickDelta);
+            }
             long time_end = System.nanoTime();
             Fpv20.LOGGER.debug("event_time {}", time_end - time_start);
 

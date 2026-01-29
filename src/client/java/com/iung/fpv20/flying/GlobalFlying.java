@@ -2,6 +2,7 @@ package com.iung.fpv20.flying;
 
 import com.iung.fpv20.Fpv20;
 import com.iung.fpv20.Fpv20Client;
+import com.iung.fpv20.compat.flashback.FlashbackIntegration;
 import com.iung.fpv20.input.Controller;
 import com.iung.fpv20.mixin_utils.IsFlying;
 //import com.iung.fpv20.network.DroneFlyPacket;
@@ -49,6 +50,8 @@ public class GlobalFlying {
     private Vec3d last_tick_pos;
     private Vec3d this_tick_pos;
     private Vec3d speed;
+    private Vec3d last_raw_velocity = new Vec3d(0, 0, 0);
+    private float last_raw_thrust = 0.0f;
 
     private void update_speed_tick(Entity player) {
         last_tick_pos = this_tick_pos;
@@ -63,6 +66,14 @@ public class GlobalFlying {
 
     private Vec3d get_speed() {
         return this.speed;
+    }
+
+    public Vec3d getLastRawVelocity() {
+        return last_raw_velocity;
+    }
+
+    public float getLastRawThrust() {
+        return last_raw_thrust;
     }
 
 
@@ -121,6 +132,13 @@ public class GlobalFlying {
         Quaternionf new_r = new Quaternionf(this.droneRotation);
         new_r.rotateLocalX(-Fpv20Client.config1.getCamera_angle() * DEG_TO_RAD);
         return new_r;
+    }
+
+    public Quaternionf calcCamRotationFromYpr(float yaw, float pitch, float roll) {
+        Quaternionf base = PhysicsCore.from_ypr_deg(yaw, pitch, roll);
+        Quaternionf adjusted = new Quaternionf(base);
+        adjusted.rotateLocalX(-Fpv20Client.config1.getCamera_angle() * DEG_TO_RAD);
+        return adjusted;
     }
 
     @Deprecated
@@ -204,6 +222,7 @@ public class GlobalFlying {
         float input_y = controller.get_value_by_name("y");
         float input_p = controller.get_value_by_name("p");
         float input_r = controller.get_value_by_name("r");
+        last_raw_thrust = input_t;
 
 
         PhysicsCore.rotate_from_local_yaw_pitch_roll(q, input_y, input_p, input_r,
@@ -212,6 +231,7 @@ public class GlobalFlying {
         );
         drone.update_pose(q);
         this.set_drone_rotation(q);
+        last_raw_velocity = drone.get_speed();
 
 
         // process hit
@@ -341,6 +361,7 @@ public class GlobalFlying {
             return;
         }
         float input_t = controller.get_value_by_name("t");
+        last_raw_thrust = input_t;
 
         // process hit
         Vec3d v = drone.get_speed();
@@ -388,6 +409,7 @@ public class GlobalFlying {
 
 
         Vec3d v1 = drone.get_speed();
+        last_raw_velocity = v1;
 
 
         if (in_slow_motion) {
@@ -402,7 +424,7 @@ public class GlobalFlying {
 
     }
 
-    public void handle_flying_rotate(MinecraftClient client, float dt) {
+    public void handle_flying_rotate(MinecraftClient client, float dt, float tickDelta) {
         if (in_slow_motion) {
             dt *= config1.slow_motion_time_rate;
         }
@@ -461,6 +483,7 @@ public class GlobalFlying {
 
 
         Vector3f new_ypr = PhysicsCore.from_quaternion_to_ypr_deg(this.cacl_cam_rotation());
+        float roll = new_ypr.z;
 
 
         if (Fpv20.config.in_fabric()) {
@@ -480,6 +503,10 @@ public class GlobalFlying {
 //            p.setYaw(180);
 //            p.setPitch(0);
         }
+
+        FlashbackIntegration.reportCameraIfRecording(tickDelta,
+                p.getX(), p.getEyeY(), p.getZ(),
+                p.getYaw(), p.getPitch(), roll);
 
 
     }

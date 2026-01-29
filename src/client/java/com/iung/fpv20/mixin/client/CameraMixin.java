@@ -2,6 +2,8 @@ package com.iung.fpv20.mixin.client;
 
 import com.iung.fpv20.Fpv20;
 import com.iung.fpv20.flying.GlobalFlying;
+import com.iung.fpv20.replay.FpvReplayManager;
+import com.iung.fpv20.replay.ReplayFrame;
 import net.minecraft.client.render.Camera;
 import org.joml.Quaternionf;
 import org.spongepowered.asm.mixin.Mixin;
@@ -19,6 +21,12 @@ public class CameraMixin {
 //            index = 2
     )
     private Quaternionf doABarrelRoll$setRoll(Quaternionf instance, float angleY, float angleX, float angleZ) {
+        if (FpvReplayManager.isReplaying()) {
+            ReplayFrame frame = FpvReplayManager.getCurrentFrame();
+            if (frame != null) {
+                return instance.set(frame.getRotation().conjugate());
+            }
+        }
 //        var roll = tempRoll.get();
 //        if (roll != null) {
 //            this.roll = roll;

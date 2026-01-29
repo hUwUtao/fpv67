@@ -10,6 +10,8 @@ import com.iung.fpv20.flying.GlobalFlying;
 import com.iung.fpv20.gui.handle_screen.ReceiverScreen;
 import com.iung.fpv20.gui.hud.SticksHud;
 import com.iung.fpv20.input.Controller;
+import com.iung.fpv20.replay.FpvReplayCommands;
+import com.iung.fpv20.replay.FpvReplayManager;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents;
@@ -44,21 +46,55 @@ public class Fpv20Client implements ClientModInitializer {
 
     public static boolean in_slow_motion = false;
 
+    private static final KeyBinding.Category FPV_CATEGORY =
+            KeyBinding.Category.create(Identifier.of("fpv20.keybinds.category"));
+
     private static KeyBinding osdKeybind;
+    private static KeyBinding recordReplayKeybind;
+    private static KeyBinding playReplayKeybind;
 
     @Override
     public void onInitializeClient() {
+        FpvReplayCommands.register();
         osdKeybind = KeyBindingHelper.registerKeyBinding(new KeyBinding(
                 "fpv20.keybind.osd",
                 InputUtil.Type.KEYSYM,
                 GLFW.GLFW_KEY_O,
 
-                KeyBinding.Category.create(Identifier.of("fpv20.keybinds.category"))
+                FPV_CATEGORY
+        ));
+        recordReplayKeybind = KeyBindingHelper.registerKeyBinding(new KeyBinding(
+                "fpv20.keybind.replay_record",
+                InputUtil.Type.KEYSYM,
+                GLFW.GLFW_KEY_F7,
+                FPV_CATEGORY
+        ));
+        playReplayKeybind = KeyBindingHelper.registerKeyBinding(new KeyBinding(
+                "fpv20.keybind.replay_play",
+                InputUtil.Type.KEYSYM,
+                GLFW.GLFW_KEY_F8,
+                FPV_CATEGORY
         ));
 
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
             while (osdKeybind.wasPressed()) {
                 config.setShow_osd(!config.show_osd());
+            }
+            while (recordReplayKeybind.wasPressed()) {
+                if (FpvReplayManager.isRecording()) {
+                    FpvReplayManager.stopRecording();
+                } else {
+                    FpvReplayManager.stopReplay();
+                    FpvReplayManager.startRecording();
+                }
+            }
+            while (playReplayKeybind.wasPressed()) {
+                if (FpvReplayManager.isReplaying()) {
+                    FpvReplayManager.stopReplay();
+                } else {
+                    FpvReplayManager.stopRecording();
+                    FpvReplayManager.startReplay();
+                }
             }
         });
 
@@ -88,8 +124,10 @@ public class Fpv20Client implements ClientModInitializer {
         ClientTickEvents.START_CLIENT_TICK.register(client -> {
             ClientPlayerEntity player = client.player;
             if (player != null) {
-                GlobalFlying.G.update_tick_start(player);
-                GlobalFlying.G.handle_flying_phy(player, 0.05f);
+                if (!FpvReplayManager.isReplaying()) {
+                    GlobalFlying.G.update_tick_start(player);
+                    GlobalFlying.G.handle_flying_phy(player, 0.05f);
+                }
 //                GlobalFlying.G.handle_flying(client);
             }
         });
@@ -154,4 +192,3 @@ public class Fpv20Client implements ClientModInitializer {
         }
     }
 }
-
